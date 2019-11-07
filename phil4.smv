@@ -1,0 +1,135 @@
+--
+-- CSC 322 Project 3
+--
+-- Name: Elise Brodie and Leoza Kabir
+-- Vnum: 
+--
+--
+MODULE main
+  
+VAR
+  chopsticks : array 0..4 of {nobody,0,1,2,3,4}; -- who holds the chopstick.
+  token: {0,1,2,3}; -- token to specifiy whos turn
+  
+  --
+  -- Philosopher i has chopstick i on left and chopstick
+  -- (i + 1) mod 5 on right
+  --
+  p0 : process philosopher(0,chopsticks[0],chopsticks[1], token);
+  p1 : process philosopher(1,chopsticks[1],chopsticks[2], token);
+  p2 : process philosopher(2,chopsticks[2],chopsticks[3], token);
+  p3 : process philosopher(3,chopsticks[3],chopsticks[4], token);
+  p4 : process philosopher(4,chopsticks[4],chopsticks[0], token);
+
+ASSIGN
+  --
+  -- Initially, all chopsticks are free
+  --
+  init(token) := 0;
+  init(chopsticks[0]) := nobody;
+  init(chopsticks[1]) := nobody;
+  init(chopsticks[2]) := nobody;
+  init(chopsticks[3]) := nobody;
+  init(chopsticks[4]) := nobody;
+  
+  next(token) := case
+	(token=0) & chopsticks[0]= nobody & chopsticks[1] = nobody: 1;
+	(token=1) & chopsticks[1]= nobody & chopsticks[2] = nobody: 2;
+	(token=2) & chopsticks[2]= nobody & chopsticks[3] = nobody: 3;
+	(token=3) & chopsticks[3]= nobody & chopsticks[4] = nobody: 4;
+	(token=4) & chopsticks[4]= nobody & chopsticks[0] = nobody: 0;
+	TRUE: token;
+  esac;
+	
+SPEC 
+	((AG(p0.state = eating) -> AG(p1.state != eating & p2.state != eating & p3.state != eating & p4.state != eating))&
+	(AG(p1.state = eating) -> AG(p0.state != eating & p2.state != eating & p3.state != eating & p4.state != eating))&
+	(AG(p2.state = eating) -> AG(p1.state != eating & p0.state != eating & p3.state != eating & p4.state != eating))&
+	(AG(p3.state = eating) -> AG(p1.state != eating & p2.state != eating & p0.state != eating & p4.state != eating))&
+	(AG(p4.state = eating) -> AG(p1.state != eating & p2.state != eating & p3.state != eating & p0.state != eating)))
+	
+SPEC
+	((AG(token = 0) -> AG(!p1.gottoken & !p2.gottoken & !p3.gottoken & !p4.gottoken)) &
+	(AG(token = 1) -> AG(!p0.gottoken & !p2.gottoken & !p3.gottoken & !p4.gottoken)) &
+	(AG(token = 2) -> AG(!p1.gottoken & !p0.gottoken & !p3.gottoken & !p4.gottoken)) &
+	(AG(token = 3) -> AG(!p1.gottoken & !p2.gottoken & !p0.gottoken & !p4.gottoken)) &
+	(AG(token = 4) -> AG(!p1.gottoken & !p2.gottoken & !p3.gottoken & !p0.gottoken)))
+
+MODULE philosopher(i,left,right, token)
+  
+VAR
+  state : {thinking, hungry, eating, done};
+  
+DEFINE
+  --
+  -- These are just abbreviations, not state variables
+  --
+  gotleft := (left=i);
+  gotright := (right=i);
+  leftfree := (left=nobody);
+  rightfree := (right=nobody);
+  gottoken := (token = i);
+    
+ASSIGN
+  init(state) := thinking;
+
+  next(left)  := case
+    (state = done) : nobody; -- drop chopstick
+    --
+    -- if hungry and left chopstick if free, take it
+    --
+    (state=hungry) & gottoken & leftfree : i;
+    TRUE : left;
+  esac;
+
+  next(right) := case
+    (state = done) : nobody; -- drop chopstick
+    --
+    -- if hungry and have left chopstick and right is free, take it
+    --
+    (state=hungry) & gotleft & rightfree & gottoken: i; 
+    TRUE : right;
+  esac;
+
+  next(state) := case
+    (state=thinking) : {thinking, hungry};
+    (state=hungry) & gotleft & gotright & gottoken: eating;
+    (state=hungry) : hungry; -- don't have chopsticks
+    (state=eating) : {eating, done};
+    (state=done) : thinking;
+    TRUE : state;
+  esac;
+  
+  next(token) := case
+	(state=eating) : i;
+	(state=done) : (i + 1) mod 5;
+	(state=hungry) & gottoken: i;
+	TRUE: token;
+  esac;
+
+-- add fairness constraints here
+FAIRNESS running
+FAIRNESS !(state = eating)
+
+-- add specifications here 
+
+-- safety:
+
+
+SPEC AG((state = eating) -> AF(gotleft & gotright & gottoken))
+
+-- SPEC AG((leftfree & rightfree & (state = hungry)) -> EF(gottoken & (state = eating)))
+-- SPEC AG( p1.state = eating -> chopstick[1] = 1 & chopstick[2] = 1)
+-- SPEC AG( p2.state = eating -> chopstick[2] = 2 & chopstick[3] = 2)
+-- SPEC AG( p3.state = eating -> chopstick[3] = 3 & chopstick[4] = 3)
+-- SPEC AG( p4.state = eating -> chopstick[4] = 4 & chopstick[0] = 4)
+
+
+-- liveness:
+
+SPEC AG((state = hungry) -> EF(state = eating))
+
+-- SPEC AG((p1.state = hungry) -> AF(p1.state = eating))
+-- SPEC AG((p2.state = hungry) -> AF(p2.state = eating))
+-- SPEC AG((p3.state = hungry) -> AF(p3.state = eating))
+-- SPEC AG((p4.state = hungry) -> AF(p4.state = eating))

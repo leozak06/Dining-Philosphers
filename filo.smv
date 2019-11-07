@@ -1,0 +1,95 @@
+-------------------------------------------------------------------------
+-- Dining Philosophers in NuSMV
+-- Copyright 2004 Michael Fourman, Informatics, University of Edinburgh
+-- filo.smv,v 1.3 2005/02/15 13:48:11 MichaelFourman Exp
+-------------------------------------------------------------------------
+
+MODULE main
+     VAR
+       fork  : array 1..5 of fork;
+       tok   : {0,1,2,3,4,5};
+       -- token provides guarded access to critical sections
+       -- only one philosopher may hold token at a time
+       phil1 : process philosopher(fork[1].where,fork[2].where,tok,1);
+       phil2 : process philosopher(fork[2].where,fork[3].where,tok,2);
+       phil3 : process philosopher(fork[3].where,fork[4].where,tok,3);
+       phil4 : process philosopher(fork[4].where,fork[5].where,tok,4);
+       phil5 : process philosopher(fork[5].where,fork[1].where,tok,5);
+     ASSIGN init(tok) := 0;
+
+     SPEC    
+       -- no hogging
+       AG EF tok = 0;
+
+
+MODULE fork
+     VAR
+       where : {left,table,right};
+     ASSIGN
+       init(where) := table;
+
+MODULE philosopher(leftFork,rightFork,token,index)
+     VAR
+       state : {think, eat, done};
+
+     ASSIGN
+       init(state) := think;
+
+       next(token)  :=
+         case
+           (token = 0)  -- token free
+         & (state = think) 
+         & (leftFork = table) 
+         & (rightFork = table) : index;        -- grab token
+
+           (token = index) & (state = eat) 
+	   	    	    	   : 0; -- release token
+           1: token;
+         esac;
+
+       next(leftFork) :=
+         case
+           (token = index)                      -- holding token
+         & (state = think)                      -- thinking
+         & (leftFork = table) : {left, table};  -- may pick up fork
+
+           (state = done)  & (leftFork = left)  : {left,table};
+           1: leftFork;
+       esac; 
+
+       next(rightFork) :=
+         case
+           (token = index)                       -- holding token
+         & (state = think)                       -- thinking
+         & (rightFork = table) : {right, table}; -- may pick up fork
+
+           (state = done)  & (rightFork = right)  : {right,table};
+           1: rightFork;
+       esac;
+       
+       next(state) := 
+         case 
+           state     = think &                   
+           leftFork  = left  & 
+           rightFork = right       : eat;
+
+           !(token   = index) &                  
+           state     = eat         : {eat,done};
+
+           state     = done  & 
+           !(leftFork  = left) & 
+           !(rightFork = right)    : think;
+
+           1:state;
+         esac;
+         FAIRNESS
+           running;
+         SPEC    -- CTL
+           -- no lockout
+           (AG EF state = eat)
+         SPEC
+	   (AG AF state = eat);
+
+------------------------------------------
+-- END
+------------------------------------------

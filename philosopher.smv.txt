@@ -1,0 +1,75 @@
+MODULE philosopher(philosopher_number,leftChopstick,rightChopstick)
+VAR
+  state:{thinking,waiting,eating,doneEating};
+ASSIGN
+	init(state):=thinking;
+
+	next(rightChopstick):=case
+	(state = waiting) & (rightChopstick=0) : philosopher_number;
+--	(state = doneEating) & (rightChopstick=philosopher_number) : 0;
+	(state = eating)  : 0 ;
+		TRUE : rightChopstick;
+  	esac;
+
+	next(leftChopstick):=case
+		(state = thinking) & (leftChopstick=0) : philosopher_number;
+	--	(state = doneEating) & !(rightChopstick=philosopher_number) & (leftChopstick=philosopher_number):0;
+		(state = eating) : 0;
+		TRUE : leftChopstick;
+  	esac;
+
+	next(state):=case
+		(state=thinking) & (leftChopstick=philosopher_number): waiting;
+		(state=waiting) & (rightChopstick=philosopher_number): eating;
+		(state=eating)  : thinking;
+		TRUE :state;
+  	esac;
+FAIRNESS running
+
+MODULE main
+VAR
+	chopstick1:0..5;
+	chopstick2:0..5;
+	chopstick3:0..5;
+	chopstick4:0..5;
+	chopstick5:0..5;
+	
+	phil1:process philosopher(1,chopstick1,chopstick2);
+	phil2:process philosopher(2,chopstick2,chopstick3);
+	phil3:process philosopher(3,chopstick3,chopstick4);
+	phil4:process philosopher(4,chopstick4,chopstick5);
+	phil5:process philosopher(5,chopstick5,chopstick1);
+
+ASSIGN
+	init(chopstick1):=0;
+	init(chopstick2):=0;
+	init(chopstick3):=0;
+	init(chopstick4):=0;
+	init(chopstick5):=0;
+
+--	SPEC EF( phil1.state=waiting & phil2.state=waiting & phil3.state=waiting & phil4.state=waiting &phil5.state=waiting)
+
+--	LTLSPEC  F  ( phil1.state=waiting ->   phil1.state=eating)
+	LTLSPEC G (phil1.state=eating -> (chopstick1=1 & chopstick2=1)  )
+
+--	LTLSPEC F (phil1.state=waiting & phil2.state=waiting & phil3.state=waiting & phil4.state=waiting &phil5.state=waiting)
+--	LTLSPEC  G F(phil1.state=waiting |phil2.state=waiting | phil3.state=waiting | phil4.state=waiting | phil5.state=waiting)
+--	SPEC EF(AG chopstick1=1 & chopstick2=2 & chopstick3=3 & chopstick4=4 & chopstick5=5)
+--	SPEC EF(AG chopstick1=1 & chopstick2=1)
+--	SPEC EF(phil1.state=eating & phil2.state=eating)
+--	SPEC EF(phil1.state=eating & phil3.state=eating)
+--	SPEC EF(AG phil1.state=thinking & phil2.state=thinking & phil3.state=thinking & phil4.state=thinking & phil5.state=thinking)
+--	SPEC EF(AG phil1.state=thinking -> phil1.state=eating)
+--	SPEC EF(AG phil1.state=thinking -> phil1.state=waiting)
+--	SPEC EF(AG phil1.state=waiting -> phil1.state=eating)
+--	SPEC EF(AG phil1.state=doneEating -> phil1.state=waiting)
+--	SPEC EF(AG phil1.state=eating -> phil1.state=thinking)
+--	SPEC EF(AG phil1.state=doneEating -> phil1.state=thinking)
+
+
+--	LTLSPEC  F  ((phil1.state=eating & phil2.state=eating))
+--	LTLSPEC !(F (phil1.state=waiting & X phil1.state=waiting & X(X phil1.state=waiting) & X(X(X phil1.state=waiting))))
+--	CTLSPEC EF(phil1.state=eating&phil3.state=eating)
+--	LTLSPEC  ((phil1.state=waiting & phil2.state=waiting & phil3.state=waiting & phil4.state=waiting &phil5.state=waiting)->(chopstick1=1 & chopstick2=2 & chopstick3=3 & chopstick4=4 & chopstick5=5))
+
+
